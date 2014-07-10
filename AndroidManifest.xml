@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.android.geofence"
+    android:versionCode="1"
+    android:versionName="1.0" >
+
+    <uses-sdk
+        android:minSdkVersion="8"
+        android:targetSdkVersion="17" />
+
+    <!--
+        Requests address-level location access, which is usually
+        necessary for geofencing
+    -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+
+    <permission
+        android:name="com.example.android.geofence.permission.C2D_MESSAGE"
+        android:protectionLevel="signature" />
+ <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="com.example.android.geofence.permission.C2D_MESSAGE" />
+
+    <!-- This app has permission to register and receive data message. -->
+    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
+    <!-- Keeps the device on vibrating mode when a message is received. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name" >
+
+        <!-- The app's entry point -->
+        <activity
+            android:name="com.example.android.geofence.MainActivity"
+            android:label="@string/title_activity_geofence" >
+            <intent-filter>
+
+                <!--
+                    This activity is triggered when the system
+                    tries to start the app's main activity
+                -->
+                <action android:name="android.intent.action.MAIN" />
+
+                <!-- This activity should be linked to the app's Launcher icon -->
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name="com.example.android.geofence.ReceiveTransitionsIntentService"
+            android:exported="false" >
+        </service>
+
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
+
+        <receiver
+            android:name="com.google.android.gcm.GCMBroadcastReceiver"
+            android:permission="com.google.android.c2dm.permission.SEND" >
+            <intent-filter>
+
+                <!-- Receives the actual messages. -->
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+                <!-- Receives the registration id. -->
+                <action android:name="com.google.android.c2dm.intent.REGISTRATION" />
+
+                <category android:name="com.example.android.geofence" />
+            </intent-filter>
+        </receiver>
+
+        <service android:name="com.example.android.geofence.GCMIntentService" />
+    </application>
+
+</manifest>
