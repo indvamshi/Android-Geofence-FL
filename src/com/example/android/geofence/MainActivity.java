@@ -4,11 +4,19 @@ package com.example.android.geofence;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentActivity;
@@ -91,10 +99,12 @@ public class MainActivity extends FragmentActivity {
 		else 
 		{
 			Log.d("", "Already registered:  "+regId);
-			new GCMService().execute(regId);
+/*			new GCMService().execute(regId);
 			Intent emailIntent = new Intent(Intent.ACTION_SENDTO, Uri.fromParts("mailto","diamondsaurabh@gmail.com", null));
 			emailIntent.putExtra(Intent.EXTRA_SUBJECT, regId);
 			startActivity(Intent.createChooser(emailIntent, "Send email..."));
+*/		
+			new GCMService().execute(regId);
 		}
 		
 		TextView txt_label = (TextView)findViewById(R.id.label_geofence); 
@@ -211,5 +221,48 @@ public class MainActivity extends FragmentActivity {
 		public Dialog onCreateDialog(Bundle savedInstanceState) {
 			return mDialog;
 		}
+	}
+	
+	public class GCMService extends AsyncTask<String, Void, String> {
+
+		@Override
+		protected String doInBackground(String... params) {
+			JSONObject jsonObj = new JSONObject();
+			JSONArray array = new JSONArray();
+
+			try {
+
+				jsonObj.put("deviceId", params[0]);
+				jsonObj.put("gcmRegId", params[0]);
+				// jsonObj.put("version", android.os.);
+				jsonObj.put("platform", "ANDROID");
+				jsonObj.put("platformVersion", android.os.Build.VERSION.RELEASE);
+				// jsonObj.put("uniqueDeviceId", );
+				jsonObj.put("brand", android.os.Build.BRAND);
+				jsonObj.put("model", android.os.Build.MODEL);
+				jsonObj.put("location", array);
+
+				HttpClient httpClient = new DefaultHttpClient();
+				HttpPost post = new HttpPost(
+						"http://192.168.0.10:8080/dealsmessanger/device");
+				// "http://127.0.0.1:8080/dealsmessanger/device");
+				post.setHeader("content-type",
+						"application/json; charset=UTF-8");
+
+				StringEntity entity = new StringEntity(jsonObj.toString());
+
+				post.setEntity(entity);
+				httpClient.execute(post);
+
+				Log.d("", "device data sent to server:  ");
+
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+			return null;
+
+		}
+
 	}
 }
