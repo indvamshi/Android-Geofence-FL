@@ -16,7 +16,6 @@ import android.util.Log;
 
 import com.aviktech.database.DatabaseHelper;
 import com.aviktech.database.GeofenceDetail;
-import com.google.android.gms.internal.fo;
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.LocationClient;
 

@@ -1,23 +1,21 @@
-
 package com.example.android.geofence;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.json.JSONArray;
-import org.json.JSONObject;
-
 import android.app.Activity;
 import android.app.Dialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.net.Uri;
-import android.os.AsyncTask;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
+import android.location.Criteria;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
@@ -30,7 +28,7 @@ import com.google.android.gcm.GCMRegistrar;
 import com.google.android.gms.location.Geofence;
 
 public class MainActivity extends FragmentActivity {
-		// Store the current request
+	// Store the current request
 	private REQUEST_TYPE mRequestType;
 
 	// Store the current type of removal
@@ -45,33 +43,43 @@ public class MainActivity extends FragmentActivity {
 	private GeofenceRemover mGeofenceRemover;
 
 	/*
-	 * An instance of an inner class that receives broadcasts from listeners and from the
-	 * IntentService that receives geofence transition events
+	 * An instance of an inner class that receives broadcasts from listeners and
+	 * from the IntentService that receives geofence transition events
 	 */
-	
+
 	// An intent filter for the broadcast receiver
 	private IntentFilter mIntentFilter;
 
 	// Store the list of geofences to remove
 	private List<String> mGeofenceIdsToRemove;
 
-
+	private LocationManager locationManager;
+	
+	private String provider;
+	
+	private MyLocationListener mylistener;
+	
+	private Criteria criteria;
+	
+	private Location location;
+	
 	@Override
-	protected void onCreate(Bundle savedInstanceState)
-	{
+	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
-	
 		// Create an intent filter for the broadcast receiver
 		mIntentFilter = new IntentFilter();
 
-		// Action for broadcast Intents that report successful addition of geofences
+		// Action for broadcast Intents that report successful addition of
+		// geofences
 		mIntentFilter.addAction(GeofenceUtils.ACTION_GEOFENCES_ADDED);
 
-		// Action for broadcast Intents that report successful removal of geofences
+		// Action for broadcast Intents that report successful removal of
+		// geofences
 		mIntentFilter.addAction(GeofenceUtils.ACTION_GEOFENCES_REMOVED);
 
-		// Action for broadcast Intents containing various types of geofencing errors
+		// Action for broadcast Intents containing various types of geofencing
+		// errors
 		mIntentFilter.addAction(GeofenceUtils.ACTION_GEOFENCE_ERROR);
 
 		// All Location Services sample apps use this category
@@ -91,46 +99,96 @@ public class MainActivity extends FragmentActivity {
 
 		// Get handles to the Geofence editor fields in the UI
 
-		final String regId 	= GCMRegistrar.getRegistrationId(this);
-		if (regId.equals(""))
-		{
+		final String regId = GCMRegistrar.getRegistrationId(this);
+		if (regId.equals("")) {
 			GCMRegistrar.register(this, Utils.GCMSenderId);
 		}
-		else 
-		{
-			Log.d("", "Already registered:  "+regId);
-/*			new GCMService().execute(regId);
-			Intent emailIntent = new Intent(Intent.ACTION_SENDTO, Uri.fromParts("mailto","diamondsaurabh@gmail.com", null));
-			emailIntent.putExtra(Intent.EXTRA_SUBJECT, regId);
-			startActivity(Intent.createChooser(emailIntent, "Send email..."));
-*/		
-			new GCMService().execute(regId);
-		}
-		
-		TextView txt_label = (TextView)findViewById(R.id.label_geofence); 
-		
+
+		TextView txt_label = (TextView) findViewById(R.id.label_geofence);
+
 		String Msg = getIntent().getStringExtra("msg");
-		if(Msg != null)
+		if (Msg != null)
 			txt_label.setText(Msg.replace(", ", "\n"));
-		
+
+		// used to get location
+		// Get the location manager
+		locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+		// Define the criteria how to select the location provider
+		criteria = new Criteria();
+		criteria.setAccuracy(Criteria.ACCURACY_COARSE); // default
+
+		criteria.setCostAllowed(false);
+		// get the best provider depending on the criteria
+		provider = locationManager.getBestProvider(criteria, false);
+
+		// the last known location of this provider
+		location = locationManager.getLastKnownLocation(provider);
+
+		mylistener = new MyLocationListener();
+
+		if (location != null) {
+			mylistener.onLocationChanged(location);
+		} else {
+			// leads to the settings because there is no last known location
+			Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+			startActivity(intent);
+		}
+		// location updates: at least 1 meter and 200millsecs change
+		//locationManager.requestLocationUpdates(provider, 3600000, 80467, mylistener);
+		locationManager.requestLocationUpdates(provider, 200, 1, mylistener);
+
 	}
 
+	private class MyLocationListener implements LocationListener {
+
+		@Override
+		public void onLocationChanged(Location location) {
+			Log.d("latitude...........", Double.toString(location.getLatitude()));
+			Log.d("longitude..........", Double.toString(location.getLongitude()));
+			SharedPreferences sharedPreferences = getApplicationContext().getSharedPreferences("SharedPreferences", Context.MODE_PRIVATE);
+			Editor edit = sharedPreferences.edit();
+			edit.putString("latitude", Double.toString(location.getLatitude()));
+			edit.putString("longitude", Double.toString(location.getLongitude()));
+			
+			edit.commit();
+		}
+
+		@Override
+		public void onStatusChanged(String provider, int status, Bundle extras) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void onProviderEnabled(String provider) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void onProviderDisabled(String provider) {
+			// TODO Auto-generated method stub
+			
+		}
+	}
+	
 	/*
 	 * Handle results returned to this Activity by other Activities started with
-	 * startActivityForResult(). In particular, the method onConnectionFailed() in
-	 * GeofenceRemover and GeofenceRequester may call startResolutionForResult() to
-	 * start an Activity that handles Google Play services problems. The result of this
-	 * call returns here, to onActivityResult.
-	 * calls
+	 * startActivityForResult(). In particular, the method onConnectionFailed()
+	 * in GeofenceRemover and GeofenceRequester may call
+	 * startResolutionForResult() to start an Activity that handles Google Play
+	 * services problems. The result of this call returns here, to
+	 * onActivityResult. calls
 	 */
 	@Override
-	protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
+	protected void onActivityResult(int requestCode, int resultCode,
+			Intent intent) {
 		// Choose what to do based on the request code
 		System.out.println("onActivityResult");
 		switch (requestCode) {
 
 		// If the request code matches the code sent in onConnectionFailed
-		case GeofenceUtils.CONNECTION_FAILURE_RESOLUTION_REQUEST :
+		case GeofenceUtils.CONNECTION_FAILURE_RESOLUTION_REQUEST:
 
 			switch (resultCode) {
 			// If Google Play services resolved the problem
@@ -146,7 +204,7 @@ public class MainActivity extends FragmentActivity {
 					mGeofenceRequester.addGeofences(mCurrentGeofences);
 
 					// If the request was to remove geofences
-				} else if (GeofenceUtils.REQUEST_TYPE.REMOVE == mRequestType ){
+				} else if (GeofenceUtils.REQUEST_TYPE.REMOVE == mRequestType) {
 
 					// Toggle the removal flag and send a new removal request
 					mGeofenceRemover.setInProgressFlag(false);
@@ -154,23 +212,27 @@ public class MainActivity extends FragmentActivity {
 					// If the removal was by Intent
 					if (GeofenceUtils.REMOVE_TYPE.INTENT == mRemoveType) {
 
-						// Restart the removal of all geofences for the PendingIntent
-						mGeofenceRemover.removeGeofencesByIntent(
-								mGeofenceRequester.getRequestPendingIntent());
+						// Restart the removal of all geofences for the
+						// PendingIntent
+						mGeofenceRemover
+								.removeGeofencesByIntent(mGeofenceRequester
+										.getRequestPendingIntent());
 
 						// If the removal was by a List of geofence IDs
 					} else {
 
 						// Restart the removal of the geofence list
-						mGeofenceRemover.removeGeofencesById(mGeofenceIdsToRemove);
+						mGeofenceRemover
+								.removeGeofencesById(mGeofenceIdsToRemove);
 					}
 				}
 				break;
 
-				// If any other result was returned by Google Play services
+			// If any other result was returned by Google Play services
 			default:
 
-				// Report that Google Play services was unable to resolve the problem.
+				// Report that Google Play services was unable to resolve the
+				// problem.
 				Log.d(GeofenceUtils.APPTAG, getString(R.string.no_resolution));
 			}
 
@@ -178,15 +240,12 @@ public class MainActivity extends FragmentActivity {
 		default:
 			// Report that this Activity received an unknown requestCode
 			Log.d(GeofenceUtils.APPTAG,
-					getString(R.string.unknown_activity_request_code, requestCode));
+					getString(R.string.unknown_activity_request_code,
+							requestCode));
 
 			break;
 		}
 	}
-
-
-
-	
 
 	/**
 	 * Define a DialogFragment to display the error dialog generated in
@@ -207,8 +266,9 @@ public class MainActivity extends FragmentActivity {
 
 		/**
 		 * Set the dialog to display
-		 *
-		 * @param dialog An error dialog
+		 * 
+		 * @param dialog
+		 *            An error dialog
 		 */
 		public void setDialog(Dialog dialog) {
 			mDialog = dialog;
@@ -222,47 +282,5 @@ public class MainActivity extends FragmentActivity {
 			return mDialog;
 		}
 	}
-	
-	public class GCMService extends AsyncTask<String, Void, String> {
 
-		@Override
-		protected String doInBackground(String... params) {
-			JSONObject jsonObj = new JSONObject();
-			JSONArray array = new JSONArray();
-
-			try {
-
-				jsonObj.put("deviceId", params[0]);
-				jsonObj.put("gcmRegId", params[0]);
-				// jsonObj.put("version", android.os.);
-				jsonObj.put("platform", "ANDROID");
-				jsonObj.put("platformVersion", android.os.Build.VERSION.RELEASE);
-				// jsonObj.put("uniqueDeviceId", );
-				jsonObj.put("brand", android.os.Build.BRAND);
-				jsonObj.put("model", android.os.Build.MODEL);
-				jsonObj.put("location", array);
-
-				HttpClient httpClient = new DefaultHttpClient();
-				HttpPost post = new HttpPost(
-						"http://192.168.0.10:8080/dealsmessanger/device");
-				// "http://127.0.0.1:8080/dealsmessanger/device");
-				post.setHeader("content-type",
-						"application/json; charset=UTF-8");
-
-				StringEntity entity = new StringEntity(jsonObj.toString());
-
-				post.setEntity(entity);
-				httpClient.execute(post);
-
-				Log.d("", "device data sent to server:  ");
-
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-
-			return null;
-
-		}
-
-	}
 }
